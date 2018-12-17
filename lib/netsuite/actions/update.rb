@@ -1,26 +1,18 @@
+# https://system.netsuite.com/help/helpcenter/en_US/Output/Help/SuiteCloudCustomizationScriptingWebServices/SuiteTalkWebServices/update.html
 module NetSuite
   module Actions
     class Update
       include Support::Requests
+
+      attr_reader :response_hash
 
       def initialize(klass, attributes)
         @klass      = klass
         @attributes = attributes
       end
 
-      def request
-        connection.request :platformMsgs, :update do
-          soap.namespaces['xmlns:platformMsgs']   = "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCore']   = "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:listRel']        = "urn:relationships_#{NetSuite::Configuration.api_version}.lists.webservices.netsuite.com"
-          soap.namespaces['xmlns:tranSales']      = "urn:sales_#{NetSuite::Configuration.api_version}.transactions.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCommon'] = "urn:common_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:listAcct']       = "urn:accounting_#{NetSuite::Configuration.api_version}.lists.webservices.netsuite.com"
-          soap.namespaces['xmlns:tranCust']       = "urn:customers_#{NetSuite::Configuration.api_version}.transactions.webservices.netsuite.com"
-          soap.namespaces['xmlns:setupCustom']    = "urn:customization_#{NetSuite::Configuration.api_version}.setup.webservices.netsuite.com"
-          soap.header = auth_header
-          soap.body   = request_body
-        end
+      def request(credentials={})
+        NetSuite::Configuration.connection({}, credentials).call :update, :message => request_body
       end
 
       # <platformMsgs:update>
@@ -30,19 +22,20 @@ module NetSuite
       # </platformMsgs:update>
       def request_body
         hash = {
-          'platformMsgs:record' => updated_record.to_record,
-          :attributes! => {
-            'platformMsgs:record' => {
-              'xsi:type' => updated_record.record_type
-            }
+          'platformMsgs:record' => {
+            :content! => updated_record.to_record,
+            '@xsi:type' => updated_record.record_type
           }
         }
+
         if updated_record.respond_to?(:internal_id) && updated_record.internal_id
-          hash[:attributes!]['platformMsgs:record']['platformMsgs:internalId'] = updated_record.internal_id
+          hash['platformMsgs:record']['@platformMsgs:internalId'] = updated_record.internal_id
         end
+
         if updated_record.respond_to?(:external_id) && updated_record.external_id
-          hash[:attributes!]['platformMsgs:record']['platformMsgs:externalId'] = updated_record.external_id
+          hash['platformMsgs:record']['@platformMsgs:externalId'] = updated_record.external_id
         end
+
         hash
       end
 
@@ -58,15 +51,30 @@ module NetSuite
         @response_body ||= response_hash[:base_ref]
       end
 
+      def response_errors
+        if response_hash[:status] && response_hash[:status][:status_detail]
+          @response_errors ||= errors
+        end
+      end
+
       def response_hash
         @response_hash ||= @response.to_hash[:update_response][:write_response]
       end
 
+      def errors
+        error_obj = response_hash[:status][:status_detail]
+        error_obj = [error_obj] if error_obj.class == Hash
+        error_obj.map do |error|
+          NetSuite::Error.new(error)
+        end
+      end
+
       module Support
-        def update(options = {})
+        def update(options = {}, credentials={})
           options.merge!(:internal_id => internal_id) if respond_to?(:internal_id) && internal_id
           options.merge!(:external_id => external_id) if respond_to?(:external_id) && external_id
-          response = NetSuite::Actions::Update.call(self.class, options)
+          response = NetSuite::Actions::Update.call([self.class, options], credentials)
+          @errors = response.errors
           response.success?
         end
       end

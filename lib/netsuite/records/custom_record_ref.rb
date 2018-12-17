@@ -8,10 +8,12 @@ module NetSuite
       attr_reader   :internal_id
       attr_accessor :external_id, :type_id
 
+      fields :name
+
       def initialize(attributes_or_record = {})
         case attributes_or_record
         when Hash
-          attributes = attributes_or_record
+          attributes = attributes_or_record.clone
           attributes.delete(:"@xmlns:platform_core")
           @internal_id = attributes.delete(:internal_id) || attributes.delete(:@internal_id)
           @external_id = attributes.delete(:external_id) || attributes.delete(:@external_id)
@@ -33,6 +35,14 @@ module NetSuite
         else
           super
         end
+      end
+
+      def to_record
+        rec = super
+        rec[:@internalId] = @internal_id if @internal_id
+        rec[:@externalId] = @external_id if @external_id
+        rec[:@typeId] = @type_id if @type_id
+        rec
       end
 
     end

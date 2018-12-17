@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe NetSuite::Actions::Add do
+  before(:all) { savon.mock! }
+  after(:all) { savon.unmock! }
 
   context 'Customer' do
     let(:customer) do
@@ -8,27 +10,25 @@ describe NetSuite::Actions::Add do
     end
 
     before do
-      savon.expects(:add).with({
+      savon.expects(:add).with(:message => {
         'platformMsgs:record' => {
-          'listRel:entityId'    => 'Shutter Fly',
-          'listRel:companyName' => 'Shutter Fly, Inc.'
+          :content! => {
+            'listRel:entityId'    => 'Shutter Fly',
+            'listRel:companyName' => 'Shutter Fly, Inc.'
+          },
+          '@xsi:type' => 'listRel:Customer'
         },
-        :attributes! => {
-          'platformMsgs:baseRef' => {
-            'xsi:type' => 'listRel:Customer'
-          }
-        }
-      }).returns(:add_customer)
+      }).returns(File.read('spec/support/fixtures/add/add_customer.xml'))
     end
 
     it 'makes a valid request to the NetSuite API' do
-      NetSuite::Actions::Add.call(customer)
+      NetSuite::Actions::Add.call([customer])
     end
 
     it 'returns a valid Response object' do
-      response = NetSuite::Actions::Add.call(customer)
-      response.should be_kind_of(NetSuite::Response)
-      response.should be_success
+      response = NetSuite::Actions::Add.call([customer])
+      expect(response).to be_kind_of(NetSuite::Response)
+      expect(response).to be_success
     end
   end
 
@@ -37,28 +37,80 @@ describe NetSuite::Actions::Add do
       NetSuite::Records::Invoice.new(:source => 'Google', :total => 100.0)
     end
 
-    before do
-      savon.expects(:add).with({
-        'platformMsgs:record' => {
-          'listRel:source' => 'Google',
-          'listRel:total'  => 100.0
-        },
-        :attributes! => {
-          'platformMsgs:baseRef' => {
-            'xsi:type' => 'listRel:Invoice'
-          }
-        }
-      }).returns(:add_invoice)
+    context 'when successful' do
+      before do
+        savon.expects(:add).with(:message => {
+          'platformMsgs:record' => {
+            :content! => {
+              'tranSales:source' => 'Google'
+            },
+            '@xsi:type' => 'tranSales:Invoice'
+          },
+        }).returns(File.read('spec/support/fixtures/add/add_invoice.xml'))
+      end
+
+      it 'makes a valid request to the NetSuite API' do
+        NetSuite::Actions::Add.call([invoice])
+      end
+
+      it 'returns a valid Response object' do
+        response = NetSuite::Actions::Add.call([invoice])
+        expect(response).to be_kind_of(NetSuite::Response)
+        expect(response).to be_success
+      end
     end
 
-    it 'makes a valid request to the NetSuite API' do
-      NetSuite::Actions::Add.call(invoice)
+    context 'when not successful' do
+      before do
+        savon.expects(:add).with(:message => {
+          'platformMsgs:record' => {
+            :content! => {
+              'tranSales:source' => 'Google'
+            },
+            '@xsi:type' => 'tranSales:Invoice'
+          },
+        }).returns(File.read('spec/support/fixtures/add/add_invoice_error.xml'))
+      end
+
+      it 'provides an error method on the object with details about the error' do
+        invoice.add
+        error = invoice.errors.first
+
+        expect(error).to be_kind_of(NetSuite::Error)
+        expect(error.type).to eq('ERROR')
+        expect(error.code).to eq('INVALID_INITIALIZE_REF')
+        expect(error.message).to eq('You can not initialize invoice: invalid reference 7281.')
+      end
+
+      it 'provides an error method on the response' do
+        response = NetSuite::Actions::Add.call([invoice])
+        expect(response.errors.first).to be_kind_of(NetSuite::Error)
+      end
     end
 
-    it 'returns a valid Response object' do
-      response = NetSuite::Actions::Add.call(invoice)
-      response.should be_kind_of(NetSuite::Response)
-      response.should be_success
+    context 'when not successful with multiple errors' do
+      before do
+        savon.expects(:add).with(:message => {
+          'platformMsgs:record' => {
+            :content! => {
+              'tranSales:source' => 'Google'
+            },
+            '@xsi:type' => 'tranSales:Invoice'
+          },
+        }).returns(File.read('spec/support/fixtures/add/add_invoice_multiple_errors.xml'))
+      end
+
+      it 'provides an error method on the object with details about the error' do
+        invoice.add
+        expect(invoice.errors.length).to eq(2)
+
+        error = invoice.errors.first
+
+        expect(error).to be_kind_of(NetSuite::Error)
+        expect(error.type).to eq('ERROR')
+        expect(error.code).to eq('ERROR')
+        expect(error.message).to eq('Some message')
+      end
     end
   end
 

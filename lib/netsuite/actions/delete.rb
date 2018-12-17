@@ -1,3 +1,4 @@
+# https://system.netsuite.com/help/helpcenter/en_US/Output/Help/SuiteCloudCustomizationScriptingWebServices/SuiteTalkWebServices/delete.html
 module NetSuite
   module Actions
     class Delete
@@ -10,13 +11,13 @@ module NetSuite
 
       private
 
-      def request
-        connection.request :platformMsgs, :delete do
-          soap.namespaces['xmlns:platformMsgs'] = "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCore'] = "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.header = auth_header
-          soap.body   = request_body
-        end
+      def request(credentials={})
+        NetSuite::Configuration.connection(
+          {namespaces: {
+            'xmlns:platformMsgs' => "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com",
+            'xmlns:platformCore' => "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
+          }}, credentials
+        ).call :delete, message: request_body
       end
 
       def soap_type
@@ -30,23 +31,25 @@ module NetSuite
       # </soap:Body>
       def request_body
         body = {
-          'platformMsgs:baseRef' => {},
-          :attributes! => {
-            'platformMsgs:baseRef' => {
-              'xsi:type'   => (@options[:custom] ? 'platformCore:CustomRecordRef' : 'platformCore:RecordRef')
-            }
-          }
+          'platformMsgs:baseRef' => {
+            '@xsi:type'   => (@options[:custom] ? 'platformCore:CustomRecordRef' : 'platformCore:RecordRef')
+          },
         }
+
         if @object.respond_to?(:external_id) && @object.external_id
-          body[:attributes!]['platformMsgs:baseRef']['externalId'] = @object.external_id
+          body['platformMsgs:baseRef']['@externalId'] = @object.external_id
         end
+
         if @object.respond_to?(:internal_id) && @object.internal_id
-          body[:attributes!]['platformMsgs:baseRef']['internalId'] = @object.internal_id
+          body['platformMsgs:baseRef']['@internalId'] = @object.internal_id
         end
+
         if @object.class.respond_to?(:type_id) && @object.class.type_id
-          body[:attributes!]['platformMsgs:baseRef']['typeId'] = @object.class.type_id
+          body['platformMsgs:baseRef']['@typeId'] = @object.class.type_id
         end
-        body[:attributes!]['platformMsgs:baseRef']['type'] = soap_type unless @options[:custom]
+
+        body['platformMsgs:baseRef']['@type'] = soap_type unless @options[:custom]
+
         body
       end
 
@@ -63,11 +66,11 @@ module NetSuite
       end
 
       module Support
-        def delete(options = {})
+        def delete(options = {}, credentials={})
           response =  if options.empty?
-                        NetSuite::Actions::Delete.call(self)
+                        NetSuite::Actions::Delete.call([self], credentials)
                       else
-                        NetSuite::Actions::Delete.call(self, options)
+                        NetSuite::Actions::Delete.call([self, options], credentials)
                       end
           response.success?
         end

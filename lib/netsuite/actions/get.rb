@@ -1,3 +1,4 @@
+# https://system.netsuite.com/help/helpcenter/en_US/Output/Help/SuiteCloudCustomizationScriptingWebServices/SuiteTalkWebServices/get.html
 module NetSuite
   module Actions
     class Get
@@ -10,13 +11,13 @@ module NetSuite
 
       private
 
-      def request
-        connection.request :platformMsgs, :get do
-          soap.namespaces['xmlns:platformMsgs'] = "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCore'] = "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.header = auth_header
-          soap.body   = request_body
-        end
+      def request(credentials={})
+        NetSuite::Configuration.connection(
+          {namespaces: {
+            'xmlns:platformMsgs' => "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com",
+            'xmlns:platformCore' => "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
+          }}, credentials
+        ).call :get, message: request_body
       end
 
       def soap_type
@@ -32,17 +33,14 @@ module NetSuite
       # </soap:Body>
       def request_body
         body = {
-          'platformMsgs:baseRef' => {},
-          :attributes! => {
-            'platformMsgs:baseRef' => {
-              'xsi:type'  => (@options[:custom] ? 'platformCore:CustomRecordRef' : 'platformCore:RecordRef')
-            }
+          'platformMsgs:baseRef' => {
+            '@xsi:type'  => (@options[:custom] ? 'platformCore:CustomRecordRef' : 'platformCore:RecordRef')
           }
         }
-        body[:attributes!]['platformMsgs:baseRef']['externalId'] = @options[:external_id] if @options[:external_id]
-        body[:attributes!]['platformMsgs:baseRef']['internalId'] = @options[:internal_id] if @options[:internal_id]
-        body[:attributes!]['platformMsgs:baseRef']['typeId']     = @options[:type_id]     if @options[:type_id]
-        body[:attributes!]['platformMsgs:baseRef']['type']       = soap_type              unless @options[:custom]
+        body['platformMsgs:baseRef']['@externalId'] = @options[:external_id] if @options[:external_id]
+        body['platformMsgs:baseRef']['@internalId'] = @options[:internal_id] if @options[:internal_id]
+        body['platformMsgs:baseRef']['@typeId']     = @options[:type_id]     if @options[:type_id]
+        body['platformMsgs:baseRef']['@type']       = soap_type              unless @options[:custom]
         body
       end
 
@@ -55,7 +53,7 @@ module NetSuite
       end
 
       def response_hash
-        @response_hash = @response[:get_response][:read_response]
+        @response_hash = @response.body[:get_response][:read_response]
       end
 
       module Support
@@ -66,8 +64,10 @@ module NetSuite
 
         module ClassMethods
 
-          def get(options = {})
-            response = NetSuite::Actions::Get.call(self, options)
+          def get(options = {}, credentials = {})
+            options = { :internal_id => options } unless options.is_a?(Hash)
+
+            response = NetSuite::Actions::Get.call([self, options], credentials)
             if response.success?
              new(response.body)
             else

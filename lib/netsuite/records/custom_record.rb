@@ -7,10 +7,10 @@ module NetSuite
       include Support::Actions
       include Namespaces::SetupCustom
 
-      actions :get, :add, :delete
+      actions :get, :update, :get_list, :add, :delete, :search, :upsert
 
-      fields :allow_attachments, :allow_inline_editing, :allow_numbering_override, :allow_quick_search, :created,
-        :custom_record_id, :description, :disclaimer, :enabl_email_merge, :enable_numbering, :include_name,
+      fields :allow_attachments, :allow_inline_editing, :allow_numbering_override, :allow_quick_search, :alt_name, :auto_name,
+        :created, :custom_record_id, :description, :disclaimer, :enabl_email_merge, :enable_numbering, :include_name,
         :is_available_offline, :is_inactive, :is_numbering_updateable, :is_ordered, :last_modified, :name,
         :numbering_current_number, :numbering_init, :numbering_min_digits, :numbering_prefix, :numbering_suffix,
         :record_name, :script_id, :show_creation_date, :show_creation_date_on_list, :show_id, :show_last_modified_on_list,
@@ -22,6 +22,7 @@ module NetSuite
 
       attr_reader :internal_id
       attr_accessor :external_id
+      attr_accessor :search_joins
 
       def initialize(attributes = {})
         @internal_id = attributes.delete(:internal_id) || attributes.delete(:@internal_id)
@@ -41,19 +42,13 @@ module NetSuite
       def self.type_id(id = nil)
         if id
           @type_id = id
-        else
-          @type_id
         end
+
+        @type_id
       end
 
       def record_type
         "#{record_namespace}:CustomRecord"
-      end
-
-      def to_record
-        rec = super
-        rec["#{record_namespace}:customFieldList!"] = rec.delete("#{record_namespace}:customFieldList")
-        rec
       end
 
     end

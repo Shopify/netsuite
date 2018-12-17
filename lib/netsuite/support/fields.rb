@@ -28,7 +28,11 @@ module NetSuite
             end
 
             define_method("#{name_sym}=") do |value|
-              attributes[name_sym] = value.kind_of?(klass) ? value : klass.new(value)
+              if value.nil?
+                attributes.delete(name_sym)
+              else
+                attributes[name_sym] = value.kind_of?(klass) ? value : klass.new(value)
+              end
             end
           else
             define_method(name_sym) do
@@ -56,7 +60,6 @@ module NetSuite
           read_only_fields << name_sym
           field name
         end
-
       end
 
     end

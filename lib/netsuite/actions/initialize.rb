@@ -1,3 +1,4 @@
+# https://system.netsuite.com/help/helpcenter/en_US/Output/Help/SuiteCloudCustomizationScriptingWebServices/SuiteTalkWebServices/initializeinitializeList.html
 module NetSuite
   module Actions
     class Initialize
@@ -8,14 +9,14 @@ module NetSuite
         @object = object
       end
 
-      def request
-        connection.request :platformMsgs, :initialize do
-          soap.namespaces['xmlns:platformMsgs']    = "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCore']    = "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.namespaces['xmlns:platformCoreTyp'] = "urn:types.core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com"
-          soap.header = auth_header
-          soap.body   = request_body
-        end
+      def request(credentials={})
+        NetSuite::Configuration.connection(
+          {namespaces: {
+            'xmlns:platformMsgs'    => "urn:messages_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com",
+            'xmlns:platformCore'    => "urn:core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com",
+            'xmlns:platformCoreTyp' => "urn:types.core_#{NetSuite::Configuration.api_version}.platform.webservices.netsuite.com",
+          }}, credentials
+        ).call :initialize, :message => request_body
       end
 
       # <platformMsgs:initializeRecord>
@@ -64,8 +65,8 @@ module NetSuite
 
         module ClassMethods
 
-          def initialize(object)
-            response = NetSuite::Actions::Initialize.call(self, object)
+          def initialize(object, credentials={})
+            response = NetSuite::Actions::Initialize.call([self, object], credentials)
             if response.success?
               new(response.body)
             else

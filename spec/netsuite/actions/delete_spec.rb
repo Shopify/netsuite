@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe NetSuite::Actions::Delete do
+  before(:all) { savon.mock! }
+  after(:all) { savon.unmock! }
 
   context 'Customer' do
     let(:customer) do
@@ -8,26 +10,23 @@ describe NetSuite::Actions::Delete do
     end
 
     before do
-      savon.expects(:delete).with({
-        'platformMsgs:baseRef' => {},
-        :attributes! => {
-          'platformMsgs:baseRef' => {
-            'internalId' => '980',
-            'type'       => 'customer',
-            'xsi:type'   => 'platformCore:RecordRef'
-          }
-        }
-      }).returns(:delete_customer)
+      savon.expects(:delete).with(:message => {
+        'platformMsgs:baseRef' => {
+          '@internalId' => '980',
+          '@type'       => 'customer',
+          '@xsi:type'   => 'platformCore:RecordRef'
+        },
+      }).returns(File.read('spec/support/fixtures/delete/delete_customer.xml'))
     end
 
     it 'makes a valid request to the NetSuite API' do
-      NetSuite::Actions::Delete.call(customer)
+      NetSuite::Actions::Delete.call([customer])
     end
 
     it 'returns a valid Response object' do
-      response = NetSuite::Actions::Delete.call(customer)
-      response.should be_kind_of(NetSuite::Response)
-      response.should be_success
+      response = NetSuite::Actions::Delete.call([customer])
+      expect(response).to be_kind_of(NetSuite::Response)
+      expect(response).to be_success
     end
   end
 

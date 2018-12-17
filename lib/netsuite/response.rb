@@ -1,10 +1,12 @@
 module NetSuite
   class Response
-    attr_accessor :body
+    attr_accessor :header, :body, :errors
 
     def initialize(attributes = {})
-      @success = attributes[:success]
-      @body    = attributes[:body]
+      @success  = attributes[:success]
+      @header   = attributes[:header]
+      @body     = attributes[:body]
+      @errors   = attributes[:errors] || []
     end
 
     def success!
@@ -14,6 +16,5 @@ module NetSuite
     def success?
       @success
     end
-
   end
 end

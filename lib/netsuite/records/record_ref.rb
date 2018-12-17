@@ -15,7 +15,7 @@ module NetSuite
           attributes.delete(:"@xmlns:platform_core")
           @internal_id = attributes.delete(:internal_id) || attributes.delete(:@internal_id)
           @external_id = attributes.delete(:external_id) || attributes.delete(:@external_id)
-          @type        = attributes.delete(:type) || attributes.delete(:@type)
+          @type        = attributes.delete(:type) || attributes.delete(:@type) || attributes.delete(:"@xsi:type")
           @attributes  = attributes
         else
           record = attributes_or_record
@@ -31,14 +31,6 @@ module NetSuite
         else
           super
         end
-      end
-
-      def attributes!
-        hash = {}
-        hash[:internalId] = @internal_id if @internal_id
-        hash[:externalId] = @external_id if @external_id
-        hash[:type]       = @type        if @type
-        hash
       end
 
     end
