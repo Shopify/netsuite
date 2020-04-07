@@ -132,7 +132,7 @@ module NetSuite
       else
         # if sandbox, this parameter is ignored
         if sandbox
-          'system.netsuite.com'
+          '3319168-sb1.suitetalk.api.netsuite.com'
         else
           attributes[:wsdl_domain] ||= 'webservices.netsuite.com'
         end
